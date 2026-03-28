@@ -7,9 +7,7 @@ import Foundation
 //   - luma (main app target)  — so LiveActivityModule.swift can call Activity.request(...)
 //   - DoomscrollWidget (extension target) — so the widget can render the state
 //
-// Fixed attributes (set once at start, cannot change):
-//   startTime — used if you ever want to display a timer relative to start
-//
+// ActivityAttributes requires at least one fixed attribute, so a placeholder is used.
 // ContentState (dynamic, updated via LiveActivityModule):
 //   elapsedSeconds — seconds since the session began
 //   stage          — one of: "calm" | "restless" | "agitated" | "exhausted"
@@ -20,5 +18,6 @@ public struct DoomscrollAttributes: ActivityAttributes {
         public var stage: String
     }
 
-    public var startTime: Date
+    // ActivityAttributes requires a body — unused but required by the protocol.
+    public var sessionID: String
 }

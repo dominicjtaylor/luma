@@ -29,7 +29,7 @@ class LiveActivityModule: NSObject {
       currentActivity = nil
     }
 
-    let attributes = DoomscrollAttributes(startTime: Date())
+    let attributes = DoomscrollAttributes(sessionID: UUID().uuidString)
     let contentState = DoomscrollAttributes.ContentState(
       elapsedSeconds: elapsedSeconds,
       stage: stage
@@ -86,9 +86,11 @@ class LiveActivityModule: NSObject {
       return
     }
 
+    // Nil out synchronously so any concurrent startActivity call does not see
+    // a stale reference while the async end is in flight.
+    currentActivity = nil
     Task {
       await activity.end(dismissalPolicy: .immediate)
-      self.currentActivity = nil
       resolve(nil)
     }
   }
