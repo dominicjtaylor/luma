@@ -5,7 +5,7 @@
 // main app target. Xcode will find it automatically if the path is set correctly
 // in Build Settings → Swift Compiler - General → Objective-C Bridging Header.
 //
-// Expected value:  luma/luma-Bridging-Header.h
+// Exact Build Settings value:  $(SRCROOT)/luma/luma-Bridging-Header.h
 //
 
 #import <React/RCTBridgeModule.h>

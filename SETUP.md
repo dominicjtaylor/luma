@@ -1,418 +1,465 @@
-# Luma — Setup & Build Guide
+# Luma — Definitive Setup Guide
 
 ---
 
-## Prerequisites
+## Requirements
 
-| Requirement | Detail |
-|-------------|--------|
+| Item | Requirement |
+|------|-------------|
 | Node.js | 18 or later |
 | Xcode | 15 or later |
-| CocoaPods | 1.13 or later — install with `sudo gem install cocoapods` |
-| iPhone model | iPhone 14 Pro, 14 Pro Max, 15, 15 Plus, 15 Pro, 15 Pro Max, 16 (any) — must have Dynamic Island |
-| iPhone iOS version | 16.1 or later |
-| Apple Developer account | A free account is sufficient for device builds |
+| CocoaPods | 1.13 or later |
+| iPhone model | iPhone 14 Pro, 14 Pro Max, 15, 15 Plus, 15 Pro, 15 Pro Max, or any iPhone 16 |
+| iPhone OS | 16.1 or later |
+| Apple Developer account | Free account is sufficient |
 
-Simulators do not support Live Activities. A physical iPhone is required.
+A physical iPhone is required. Dynamic Island does not exist on simulators or on any
+iPhone 13 or earlier model.
 
 ---
 
-## Terminal commands
+## Part 1 — Terminal
 
-Run all of these from the project root directory (`luma/`).
-
-### Step 1 — Install JavaScript dependencies
+### 1.1 Install dependencies
 
 ```bash
 npm install
 ```
 
-### Step 2 — Generate the iOS Xcode project
+### 1.2 Generate the iOS project
 
 ```bash
 npx expo prebuild --platform ios --clean
 ```
 
-`--clean` wipes the `ios/` directory before regenerating it. This also deletes the
-custom Swift files that are tracked in git. Restore them immediately after:
+`--clean` deletes the entire `ios/` directory before regenerating it. This removes the
+custom Swift files that are tracked in git. Run the following command immediately after
+to restore them:
 
 ```bash
-git checkout -- ios/LiveActivityModule ios/DoomscrollWidget ios/Shared ios/luma/luma-Bridging-Header.h ios/luma/luma.entitlements
+git checkout -- ios/LiveActivityModule ios/Shared ios/luma/luma-Bridging-Header.h
 ```
 
-After this command, verify the following files exist on disk:
+This restores exactly these files:
 
 ```
 ios/LiveActivityModule/LiveActivityModule.swift
 ios/LiveActivityModule/LiveActivityModule.m
-ios/DoomscrollWidget/DoomscrollLiveActivity.swift
-ios/DoomscrollWidget/DoomscrollWidgetBundle.swift
-ios/DoomscrollWidget/Info.plist
 ios/Shared/DoomscrollAttributes.swift
 ios/luma/luma-Bridging-Header.h
-ios/luma/luma.entitlements
 ```
 
-### Step 3 — Install CocoaPods
+Do not restore `ios/luma/luma.entitlements` — Expo generates a correct entitlements
+file and restoring the git version would overwrite it.
+
+Do not restore `ios/DoomscrollWidget/` yet — Xcode will create this directory when you
+add the widget extension target in Part 2. You will restore the widget files after that.
+
+### 1.3 Install CocoaPods
 
 ```bash
 cd ios && pod install && cd ..
 ```
 
-### Step 4 — Open the workspace
+### 1.4 Open the Xcode workspace
 
 ```bash
 open ios/luma.xcworkspace
 ```
 
-Always open `luma.xcworkspace`, never `luma.xcodeproj`.
+Always open `luma.xcworkspace`. Never open `luma.xcodeproj` directly.
 
 ---
 
-## Xcode configuration
+## Part 2 — Xcode
 
-Complete all steps below before attempting to build.
+Complete every step in this exact order.
 
 ---
 
-### Step 5 — Set the bridging header (main app target)
+### Step 1 — Set the bridging header path
 
-The Swift native module uses React Native Objective-C types. These are exposed
-to Swift via a bridging header.
+`LiveActivityModule.swift` uses `RCTPromiseResolveBlock` and `RCTPromiseRejectBlock`,
+which are Objective-C types defined in React Native headers. A bridging header makes
+these types visible to Swift. The file already exists at `ios/luma/luma-Bridging-Header.h`.
+You need to tell Xcode where it is.
 
-1. In the Project Navigator (left panel), click the **luma** project (the top-level
-   blue icon with the project name)
-2. In the main area, select the **luma** target (under TARGETS, not PROJECT)
-3. Click the **Build Settings** tab
-4. In the search field, type: `Objective-C Bridging Header`
-   One result appears: **Swift Compiler - General → Objective-C Bridging Header**
-5. Double-click the value column on the right of that row
-6. Enter exactly:
+1. In the Project Navigator (left panel), click the **luma** project — the top-level
+   item with a blue Xcode icon and the name "luma"
+2. The centre panel now shows the project and targets. Under **TARGETS**, click **luma**
+3. Click the **Build Settings** tab (the fourth tab along the top)
+4. In the search field directly below the tabs, type:
+   ```
+   Objective-C Bridging Header
+   ```
+5. One row appears: **Swift Compiler - General → Objective-C Bridging Header**
+6. Double-click the empty value field on the right side of that row
+7. Type exactly:
    ```
    $(SRCROOT)/luma/luma-Bridging-Header.h
    ```
-7. Press Enter
+8. Press Enter
 
-`$(SRCROOT)` resolves to the `ios/` directory. The full path this points to is
-`ios/luma/luma-Bridging-Header.h`, which exists after the `git checkout` above.
+`$(SRCROOT)` is an Xcode build variable that resolves to the `ios/` directory (the
+directory that contains the `.xcodeproj` file). The full path this value refers to is
+`ios/luma/luma-Bridging-Header.h`.
 
 ---
 
-### Step 6 — Add native module files to the main app target
+### Step 2 — Add the native module files to the main app
 
-The files on disk must be referenced by the Xcode project before they can compile.
-
-1. In the Project Navigator, right-click the **luma** folder (not the top-level project)
-2. Select **Add Files to "luma"...**
-3. In the file picker, navigate to `ios/LiveActivityModule/`
-4. Select `LiveActivityModule.swift` — hold **⌘** and also select `LiveActivityModule.m`
-   (select both files at once)
-5. At the bottom of the dialog:
-   - **Destination:** leave "Copy items if needed" **unchecked** — the files are already
-     inside the project directory
-   - **Added to targets:** check **luma** only — uncheck DoomscrollWidget if it appears
-6. Click **Add**
-
-When Xcode asks "Would you like to configure an Objective-C bridging header?",
-click **Cancel**. The bridging header already exists.
-
-Repeat for the shared attributes file:
-
-1. Right-click the **luma** folder → **Add Files to "luma"...**
-2. Navigate to `ios/Shared/`
-3. Select `DoomscrollAttributes.swift`
-4. At the bottom:
-   - "Copy items if needed": **unchecked**
-   - **Added to targets:** check **luma** only (the widget target does not exist yet)
+1. In the Project Navigator, right-click the **luma** folder (the yellow folder icon,
+   not the top-level blue project icon) → **Add Files to "luma"...**
+2. In the file picker, navigate to `ios/LiveActivityModule/`
+3. Click `LiveActivityModule.swift`. Hold **⌘** and also click `LiveActivityModule.m`.
+   Both files should now be highlighted.
+4. At the bottom of the dialog:
+   - **"Copy items if needed"** checkbox → leave **unchecked**
+   - **"Add to targets"** section → check **luma** → uncheck any other target listed
 5. Click **Add**
 
+If Xcode shows a dialog asking "Would you like to configure an Objective-C bridging
+header?", click **Cancel**. The bridging header already exists.
+
 ---
 
-### Step 7 — Verify the main app Info.plist
+### Step 3 — Add DoomscrollAttributes to the main app
 
-The `app.json` file contains Live Activities plist keys that Expo prebuild injects
-automatically. Verify they made it in.
+1. Right-click the **luma** folder in the Navigator → **Add Files to "luma"...**
+2. Navigate to `ios/Shared/`
+3. Click `DoomscrollAttributes.swift`
+4. At the bottom:
+   - **"Copy items if needed"** → **unchecked**
+   - **"Add to targets"** → check **luma** → uncheck any other target listed
+5. Click **Add**
+
+You will add this same file to the widget target in Step 9.
+
+---
+
+### Step 4 — Verify the main app Info.plist
 
 1. In the Project Navigator, expand the **luma** folder
-2. Open `Info.plist`
-3. Confirm these two keys exist:
+2. Click `Info.plist`
+3. Confirm these two entries exist in the list:
 
-| Key | Value |
-|-----|-------|
-| `NSSupportsLiveActivities` | `Boolean — YES` |
-| `NSSupportsLiveActivitiesFrequentUpdates` | `Boolean — NO` |
+| Key | Type | Value |
+|-----|------|-------|
+| `NSSupportsLiveActivities` | Boolean | YES |
+| `NSSupportsLiveActivitiesFrequentUpdates` | Boolean | NO |
 
-If either key is missing:
-- Switch to the raw XML view: right-click `Info.plist` → Open As → Source Code
-- Add the missing lines inside the root `<dict>`:
-  ```xml
-  <key>NSSupportsLiveActivities</key>
-  <true/>
-  <key>NSSupportsLiveActivitiesFrequentUpdates</key>
-  <false/>
-  ```
+These are injected by Expo prebuild from `app.json`. If either entry is missing:
+- Click the `+` button at the end of any existing row to add a new row
+- Type the key name exactly as shown above
+- Set the type to **Boolean**
+- Set the value to **YES** or **NO** as shown
 
 ---
 
-### Step 8 — Set the main app deployment target
+### Step 5 — Set the main app deployment target
 
-1. Select the **luma** project in the Navigator
-2. Select the **luma** target
+1. Click the **luma** project in the Navigator
+2. Under TARGETS, select **luma**
 3. Click the **General** tab
-4. Under **Minimum Deployments**, set **iOS** to **16.1**
+4. Under **Minimum Deployments**, set the **iOS** dropdown to **16.1**
+
+If 16.1 does not appear in the dropdown, type `16.1` directly into the field.
 
 ---
 
-### Step 9 — Sign the main app
+### Step 6 — Sign the main app
 
-1. **luma** target → **Signing & Capabilities** tab
-2. Set **Team** to your Apple Developer account
-3. Ensure **Automatically manage signing** is checked
-4. Bundle Identifier: `com.luma.doomscroll` (already set by Expo prebuild)
+1. Under TARGETS, select **luma**
+2. Click the **Signing & Capabilities** tab
+3. Set **Team** to your Apple Developer account using the dropdown
+   - If no account appears: Xcode menu → Settings → Accounts → add your Apple ID
+4. Ensure **Automatically manage signing** is checked
+5. **Bundle Identifier** should read `com.luma.doomscroll`
 
-If Xcode shows a signing error at this point, it will be one of:
-- "No account found" — sign into your Apple account: Xcode menu → Settings → Accounts
-- "Failed to create provisioning profile" — your bundle ID may already be registered
-  to a different account; change the bundle ID to something unique, e.g.
-  `com.yourname.luma.doomscroll`
+If Xcode shows a red error "Failed to create provisioning profile", the bundle ID is
+already registered to a different account. Change the Bundle Identifier to something
+unique, for example `com.yourname.luma`. If you change it here, also change the
+widget bundle ID in Step 11 to use the same prefix.
 
 ---
 
-### Step 10 — Create the Widget Extension target
+### Step 7 — Create the widget extension target
 
-Live Activities are rendered by a WidgetKit extension that runs in a separate process.
-This target must be created manually — Expo cannot generate it.
-
-1. In the Xcode menu: **File → New → Target...**
-2. In the template chooser, select the **iOS** tab at the top
-3. Scroll to or search for **Widget Extension**
-4. Select **Widget Extension** → click **Next**
-5. Fill in the fields:
+1. In the menu bar: **File → New → Target...**
+2. At the top of the template chooser, make sure **iOS** is selected (not macOS)
+3. In the search field, type `Widget`
+4. Select **Widget Extension** from the results
+5. Click **Next**
+6. Fill in the fields:
    - **Product Name:** `DoomscrollWidget`
-   - **Team:** same team you selected in Step 9
-   - **Organization Identifier:** `com.luma` (this auto-fills the bundle ID below)
-   - **Bundle Identifier:** confirm it reads `com.luma.doomscroll.widget`
-   - **Language:** Swift
-   - **Include Live Activity:** check this box if it appears
+   - **Team:** select the same team you chose in Step 6
+   - **Bundle Identifier:** this will auto-fill — confirm it reads `com.luma.doomscroll.widget`
+     (If you changed the bundle ID in Step 6, it will auto-fill with your prefix instead —
+     that is correct, do not change it)
+   - **Include Live Activity:** check this box if it is visible
    - **Include Configuration App Intent:** leave this unchecked
-6. Click **Finish**
-7. A dialog asks: "Activate 'DoomscrollWidget' scheme?" → click **Activate**
+7. Click **Finish**
+8. A dialog appears: "Activate 'DoomscrollWidget' scheme?" → click **Activate**
 
 ---
 
-### Step 11 — Delete Xcode's auto-generated widget files
+### Step 8 — Delete Xcode's generated widget files
 
-Xcode generates placeholder Swift files inside the new target. These conflict with
-the files from this project. They must be deleted before adding ours.
+Xcode places placeholder Swift files in the new target. These files contain an `@main`
+entry point that will conflict with the project's own files. They must be deleted.
 
-In the Project Navigator, expand the **DoomscrollWidget** folder. You will see files
-similar to these (exact names depend on Xcode version):
+In the Project Navigator, expand the **DoomscrollWidget** folder. You will see a set of
+auto-generated `.swift` files. The exact names depend on Xcode version, but they will
+be some combination of:
 
 - `DoomscrollWidget.swift`
 - `DoomscrollWidgetBundle.swift`
 - `DoomscrollWidgetLiveActivity.swift`
-- `Assets.xcassets` (inside the widget group — keep this if it appears)
-- `DoomscrollWidget.intentdefinition` (if present — delete this too)
+- `DoomscrollWidgetControl.swift`
+- `AppIntent.swift`
 
-Select all `.swift` files in the DoomscrollWidget group. Right-click →
-**Delete** → in the confirmation dialog, click **Move to Trash**.
+Select all `.swift` files in this group (do not select `Info.plist` or `Assets.xcassets`).
 
-Do not delete `Info.plist` from the DoomscrollWidget group — leave that file in place
-for now (you will replace its contents in Step 13).
+Right-click the selection → **Delete**
 
----
+In the confirmation dialog that appears, click **Move to Trash**.
 
-### Step 12 — Add widget source files
+The files must be deleted from disk, not just removed from the Xcode project. "Move to
+Trash" confirms disk deletion. "Remove Reference" would only remove them from the
+project while leaving them on disk — do not use "Remove Reference".
 
-1. Right-click the **DoomscrollWidget** folder in the Navigator
-2. Select **Add Files to "luma"...**
-3. Navigate to `ios/DoomscrollWidget/`
-4. Select `DoomscrollWidgetBundle.swift` — hold **⌘** and also select
-   `DoomscrollLiveActivity.swift`
-5. At the bottom:
-   - "Copy items if needed": **unchecked**
-   - **Added to targets:** check **DoomscrollWidget** only — uncheck **luma**
-6. Click **Add**
-
-Now add the shared attributes file to the widget target:
-
-1. In the Project Navigator, single-click `DoomscrollAttributes.swift`
-   (which you added to **luma** in Step 6 — it should be visible in the luma group)
-2. Open the **File Inspector** (right panel → first tab, the document icon)
-3. Under **Target Membership**, you will see a list of targets with checkboxes
-4. Check **DoomscrollWidget** — it should now show both `luma` and `DoomscrollWidget`
-   checked
-
-This is the only file in the project that belongs to both targets.
+After this step, the DoomscrollWidget group in the Navigator should contain only
+`Info.plist` (and optionally `Assets.xcassets`).
 
 ---
 
-### Step 13 — Configure the widget Info.plist
+### Step 9 — Restore the widget Swift files
 
-The widget extension needs `NSSupportsLiveActivities` in its own `Info.plist`.
+Switch to the Terminal window (do not close Xcode). Run:
+
+```bash
+git checkout -- ios/DoomscrollWidget/DoomscrollWidgetBundle.swift ios/DoomscrollWidget/DoomscrollLiveActivity.swift
+```
+
+This places the project's Swift files back on disk at:
+
+```
+ios/DoomscrollWidget/DoomscrollWidgetBundle.swift
+ios/DoomscrollWidget/DoomscrollLiveActivity.swift
+```
+
+These files are now on disk but not yet part of the Xcode project. Add them in the next step.
+
+---
+
+### Step 10 — Add the widget Swift files to the DoomscrollWidget target
+
+1. In Xcode, right-click the **DoomscrollWidget** folder in the Navigator →
+   **Add Files to "luma"...**
+2. Navigate to `ios/DoomscrollWidget/`
+3. Click `DoomscrollWidgetBundle.swift`. Hold **⌘** and also click
+   `DoomscrollLiveActivity.swift`. Both files should be highlighted.
+4. At the bottom:
+   - **"Copy items if needed"** → **unchecked**
+   - **"Add to targets"** → check **DoomscrollWidget** → uncheck **luma**
+5. Click **Add**
+
+---
+
+### Step 11 — Add DoomscrollAttributes to the widget target
+
+`DoomscrollAttributes.swift` was already added to the **luma** target in Step 3.
+It must also be added to the **DoomscrollWidget** target.
+
+1. In the Project Navigator, click `DoomscrollAttributes.swift` once to select it
+2. Open the **File Inspector** panel on the right side of Xcode
+   - If the right panel is not visible: View menu → Inspectors → Show Inspector, or press
+     **⌥⌘0** (Option + Command + 0)
+   - The File Inspector is the first tab in the right panel (document icon)
+3. Scroll to the **Target Membership** section
+4. You will see a list of targets with checkboxes. Currently only **luma** is checked.
+5. Check **DoomscrollWidget**
+
+Both **luma** and **DoomscrollWidget** should now be checked for this file.
+
+---
+
+### Step 12 — Add NSSupportsLiveActivities to the widget Info.plist
 
 1. In the Project Navigator, expand the **DoomscrollWidget** folder
 2. Click `Info.plist`
-3. Right-click anywhere in the editor → **Open As → Source Code**
-4. Add the following key inside the root `<dict>` (before the closing `</dict>`):
-   ```xml
-   <key>NSSupportsLiveActivities</key>
-   <true/>
+3. In the Xcode plist editor, click the **+** button at the end of the last row in the list
+   to add a new entry
+4. Type the key name exactly:
    ```
-5. Save the file (⌘S)
+   NSSupportsLiveActivities
+   ```
+5. The Type column will auto-set to **Boolean**
+6. The Value column will show a toggle. Set it to **YES**.
+7. Press **⌘S** to save
 
 ---
 
-### Step 14 — Set the widget deployment target
+### Step 13 — Set the widget deployment target
 
-1. Select the **luma** project in the Navigator
-2. Select the **DoomscrollWidget** target (separate from the luma target)
+1. Click the **luma** project in the Navigator
+2. Under TARGETS, select **DoomscrollWidget** (not luma — a separate row)
 3. Click the **General** tab
-4. Under **Minimum Deployments**, set **iOS** to **16.1**
+4. Under **Minimum Deployments**, set the **iOS** dropdown to **16.1**
 
 ---
 
-### Step 15 — Sign the widget extension
+### Step 14 — Sign the widget
 
-1. **DoomscrollWidget** target → **Signing & Capabilities** tab
-2. Set **Team** to the **same team** as the main app (Step 9)
-3. Ensure **Automatically manage signing** is checked
-4. Bundle Identifier: `com.luma.doomscroll.widget`
-
-The widget bundle ID must begin with the main app bundle ID followed by a dot and
-any suffix. `com.luma.doomscroll.widget` satisfies this. If you changed the main
-app bundle ID in Step 9 (e.g. to `com.yourname.luma.doomscroll`), update the widget
-bundle ID to match: `com.yourname.luma.doomscroll.widget`.
+1. Under TARGETS, select **DoomscrollWidget**
+2. Click the **Signing & Capabilities** tab
+3. Set **Team** to the same team as the main app (Step 6)
+4. Ensure **Automatically manage signing** is checked
+5. **Bundle Identifier** should read `com.luma.doomscroll.widget`
+   (or `com.yourname.luma.widget` if you changed the prefix in Step 6)
 
 ---
 
-### Step 16 — Final target membership verification
+### Step 15 — Verify target membership for all native files
 
-Before building, verify every native file has the correct target membership.
-Click each file in the Navigator and check the **File Inspector → Target Membership**.
+Select each file below in the Navigator and check its Target Membership in the
+File Inspector. This is the final verification before building.
 
-| File | luma | DoomscrollWidget |
-|------|:----:|:----------------:|
-| `LiveActivityModule.swift` | ✅ | ❌ |
-| `LiveActivityModule.m` | ✅ | ❌ |
-| `DoomscrollAttributes.swift` | ✅ | ✅ |
-| `DoomscrollWidgetBundle.swift` | ❌ | ✅ |
-| `DoomscrollLiveActivity.swift` | ❌ | ✅ |
-| `luma-Bridging-Header.h` | ✅ | ❌ |
+**`ios/LiveActivityModule/LiveActivityModule.swift`**
+- luma: **checked**
+- DoomscrollWidget: **unchecked**
+- If wrong: build error — `'RCTPromiseResolveBlock' is not a function type`
 
-**What breaks if this is wrong:**
+**`ios/LiveActivityModule/LiveActivityModule.m`**
+- luma: **checked**
+- DoomscrollWidget: **unchecked**
+- If wrong: `LiveActivityModule` methods will not be registered with the bridge
 
-- `LiveActivityModule.swift` in DoomscrollWidget → compile error:
-  `"RCTPromiseResolveBlock" is not a function type`
-- `DoomscrollAttributes.swift` missing from DoomscrollWidget → compile error:
-  `cannot find type 'DoomscrollAttributes' in scope` (in the widget)
-- `DoomscrollAttributes.swift` missing from luma → compile error:
-  `cannot find type 'DoomscrollAttributes' in scope` (in LiveActivityModule.swift)
-- `DoomscrollWidgetBundle.swift` in luma → linker error or `@main` conflict
-- Any auto-generated Xcode widget file left in DoomscrollWidget AND our
-  `DoomscrollWidgetBundle.swift` also present → compile error:
-  `'main' attribute cannot be applied to a type that is already marked as '@main'`
+**`ios/Shared/DoomscrollAttributes.swift`**
+- luma: **checked**
+- DoomscrollWidget: **checked**
+- If unchecked in luma: build error — `cannot find type 'DoomscrollAttributes' in scope` (in LiveActivityModule.swift)
+- If unchecked in DoomscrollWidget: build error — `cannot find type 'DoomscrollAttributes' in scope` (in DoomscrollLiveActivity.swift)
 
----
+**`ios/DoomscrollWidget/DoomscrollWidgetBundle.swift`**
+- luma: **unchecked**
+- DoomscrollWidget: **checked**
+- If also checked in luma: linker error or duplicate `@main` attribute
 
-## Build and run
-
-### Step 17 — Connect the iPhone and select it as the run target
-
-1. Connect your iPhone with a USB cable
-2. Trust the computer on the iPhone if prompted
-3. In Xcode, at the top centre, click the device selector (shows a simulator name
-   by default, e.g. "iPhone 16 Pro")
-4. A dropdown appears. Under **Device**, select your iPhone by name.
-   If it shows "disconnected", unplug and replug the cable.
-
-### Step 18 — Run the app
-
-Press **⌘R** or click the **▶ Run** button in Xcode.
-
-The build will take 3–8 minutes on first run. Subsequent builds are incremental.
-
-When the build succeeds:
-- The app installs on the iPhone automatically
-- The app launches and shows the Luma screen
-
-If the build fails, see the **Failure modes** section below.
+**`ios/DoomscrollWidget/DoomscrollLiveActivity.swift`**
+- luma: **unchecked**
+- DoomscrollWidget: **checked**
+- If also checked in luma: potential symbol conflicts at link time
 
 ---
 
-## Confirming the system works
+## Part 3 — Build and run
 
-### What to expect when "Start Social Mode" is tapped
+### Step 16 — Connect the iPhone
 
-1. The app UI transitions — the creature emoji (🐛) appears, the timer starts
-   counting up from `00:00`
-2. Within one second, the Dynamic Island changes shape: instead of showing only
-   the camera cutout, it expands into a pill shape
-3. The left side of the pill shows: **🐛**
-4. The right side of the pill shows: **00:00**
+1. Connect the iPhone to your Mac with a USB cable
+2. If the iPhone shows "Trust This Computer?" — tap **Trust** and enter your passcode
+3. In Xcode, click the device selector at the top centre of the window
+   (it shows something like "iPhone 16 Pro Simulator" by default)
+4. A dropdown appears. Your iPhone should appear under a **Device** heading.
+   Click it to select it.
+5. If the iPhone shows as "unavailable" or does not appear, unplug and reconnect the
+   cable and wait 10 seconds
 
-### What to expect while the session is running
+### Step 17 — Build and run
 
-- Every 10 seconds, the timer in the Dynamic Island updates
-  (e.g. `00:10`, `00:20`, `00:30`)
-- The timer in the app UI updates every second
-- Background the app (swipe up from the bottom edge) — the Dynamic Island
-  remains visible at the top of the screen
-- Lock the screen — a larger Live Activity banner appears on the lock screen
-  showing the emoji, stage name, and elapsed time
-- Long-press the Dynamic Island — it expands to show emoji, timer, and the text
-  "Doomscrolling · Calm"
-- At 5 minutes elapsed, the emoji changes to **🦎** in both the app and Dynamic
-  Island (stage change triggers an immediate native update, not waiting 10 seconds)
-- At 10 minutes: **🦂**
-- At 15 minutes: **💀**
+Press **⌘R** or click the **▶** button at the top left of Xcode.
 
-### What to expect when "Stop" is tapped
+The first build takes 3–10 minutes. Progress appears in the Xcode status bar at the top.
 
-- The Dynamic Island immediately shrinks back to the camera-only oval
+When the build succeeds, the app installs on the iPhone and launches automatically.
+If the build fails, see the Failure Modes section below.
+
+---
+
+## Part 4 — Confirming it works
+
+### When Start Social Mode is tapped
+
+1. The in-app UI changes: the creature emoji (🐛) appears large in the centre, and a
+   timer starts counting up from `00:00`
+2. Within 1–2 seconds, the Dynamic Island at the top of the iPhone changes shape —
+   it expands from the camera-only pill into a wider pill shape
+3. The left side of the pill displays: **🐛**
+4. The right side of the pill displays: **00:00**
+
+### While the session runs
+
+- Every second, the in-app timer increments
+- Every 10 seconds, the Dynamic Island timer updates (it will show `00:10`, `00:20`, etc.)
+- When you background the app (swipe up from the bottom), the Dynamic Island stays
+  visible at the top of the screen with the emoji and timer
+- When you lock the screen, a larger banner appears on the lock screen showing the
+  emoji, stage name, and timer
+- Long-press the Dynamic Island — it expands to show three regions: emoji on the left,
+  timer on the right, and "Doomscrolling · Calm" at the bottom
+- At exactly 5 minutes elapsed: the emoji changes from 🐛 to 🦎 and the Dynamic Island
+  reflects this immediately without waiting for the 10-second interval
+- At exactly 10 minutes: 🦎 → 🦂
+- At exactly 15 minutes: 🦂 → 💀
+
+### When Stop is tapped
+
+- The Dynamic Island shrinks back to the standard camera pill immediately
 - The Live Activity banner disappears from the lock screen
-- The app UI resets — creature returns to 🐛, timer disappears
+- The in-app UI resets to 🐛 with no timer visible
 
 ---
 
-## Failure modes
+## Part 5 — Failure modes
 
 ### Build error: `cannot find type 'DoomscrollAttributes' in scope`
 
-**Cause:** `DoomscrollAttributes.swift` is not assigned to the correct target.
+**Root cause:** `DoomscrollAttributes.swift` is not assigned to the target that is
+failing to build. If the error appears in `LiveActivityModule.swift`, the file is
+missing from the luma target. If it appears in `DoomscrollLiveActivity.swift`, it is
+missing from DoomscrollWidget.
 
-**Fix:** Click `DoomscrollAttributes.swift` in the Navigator → File Inspector →
-Target Membership → ensure both `luma` and `DoomscrollWidget` are checked.
+**Fix:** Click `DoomscrollAttributes.swift` in the Navigator. In the File Inspector,
+check that both **luma** and **DoomscrollWidget** are checked under Target Membership.
 
 ---
 
-### Build error: `'RCTPromiseResolveBlock' is not a function type` or `use of undeclared identifier 'RCTPromiseResolveBlock'`
+### Build error: `'RCTPromiseResolveBlock' is not a function type`
 
-**Cause:** The bridging header path in Build Settings is wrong or points to the
-wrong file.
+**Root cause:** The bridging header path in Build Settings is wrong, or the file does
+not exist on disk.
 
-**Fix:** luma target → Build Settings → search "Objective-C Bridging Header" →
-set value to exactly `$(SRCROOT)/luma/luma-Bridging-Header.h`
+**Fix — verify the path:**
+luma target → Build Settings → search "Objective-C Bridging Header" → confirm the
+value is exactly:
+```
+$(SRCROOT)/luma/luma-Bridging-Header.h
+```
 
-Also confirm the file exists on disk: `ios/luma/luma-Bridging-Header.h`
+**Fix — verify the file exists:**
+```bash
+ls ios/luma/luma-Bridging-Header.h
+```
+If the file is missing, run: `git checkout -- ios/luma/luma-Bridging-Header.h`
 
 ---
 
 ### Build error: `'main' attribute cannot be applied to a type that is already marked as '@main'`
 
-**Cause:** An auto-generated Xcode widget file containing `@main` was not deleted in
-Step 11. Two entry points exist in the DoomscrollWidget target.
+**Root cause:** An auto-generated Xcode widget file containing `@main` was not deleted
+in Step 8. Two `@main` definitions exist in the DoomscrollWidget target.
 
-**Fix:** In the Project Navigator, expand the DoomscrollWidget group. Look for any
-`.swift` file that contains `@main` (you can click each one and check). Delete it:
-right-click → Delete → Move to Trash.
+**Fix:** In the Project Navigator, expand DoomscrollWidget. Find any `.swift` file that
+is NOT one of: `DoomscrollWidgetBundle.swift`, `DoomscrollLiveActivity.swift`. Select it.
+Right-click → Delete → Move to Trash.
 
 ---
 
 ### Build error: `No such module 'ActivityKit'`
 
-**Cause:** The DoomscrollWidget deployment target is lower than 16.1. ActivityKit
-requires iOS 16.1+.
+**Root cause:** The DoomscrollWidget deployment target is below 16.1. ActivityKit is
+not available before iOS 16.1.
 
 **Fix:** DoomscrollWidget target → General → Minimum Deployments → iOS 16.1
 
@@ -420,112 +467,81 @@ requires iOS 16.1+.
 
 ### Signing error: `No profiles for 'com.luma.doomscroll' were found`
 
-**Cause:** The bundle ID is already registered to a different Apple account.
+**Root cause:** The bundle ID `com.luma.doomscroll` is already registered to a
+different Apple account.
 
-**Fix:** Change the bundle ID in both targets to something unique:
-- luma target: `com.yourname.luma.doomscroll`
-- DoomscrollWidget target: `com.yourname.luma.doomscroll.widget`
-
-Also update `app.json` → `ios.bundleIdentifier` to match. Do not re-run
-`expo prebuild` (it will delete your Xcode changes) — update the bundle ID
-only in Xcode.
+**Fix:** In the luma target → Signing & Capabilities → change Bundle Identifier to
+something unique, for example `com.yourfirstname.luma`. Then change the DoomscrollWidget
+bundle identifier to the same prefix with `.widget` appended:
+`com.yourfirstname.luma.widget`.
 
 ---
 
-### Live Activity does not appear after tapping Start
+### Live Activity does not appear after tapping Start, and no error in Xcode console
 
-Check all three of these:
+**Root cause:** Live Activities are disabled at the system level.
 
-**1. Device settings:**
-On the iPhone: Settings → Face ID & Passcode → scroll to the bottom →
-Live Activities → toggle ON
+**Fix:** On the iPhone:
+Settings → Face ID & Passcode → enter your passcode → scroll to **Live Activities** →
+toggle ON
 
-**2. App-level Live Activities:**
-Settings → scroll to the app list → find **Luma** → Live Activities → ON
-(This entry only appears after you have launched the app at least once)
-
-**3. Missing plist key:**
-In Xcode: open the main app `Info.plist`. Confirm `NSSupportsLiveActivities` is
-present and set to `YES`. Also open the DoomscrollWidget `Info.plist` and confirm
-the same key is present.
-
-**4. Check the Xcode console:**
-With the device connected and Xcode open, run the app and tap Start. Watch the
-debug output at the bottom of Xcode. If you see:
-```
-ACTIVITIES_DISABLED
-```
-the device or app has Live Activities turned off (see points 1 and 2 above).
-
-If you see:
-```
-START_FAILED
-```
-followed by an error message, the `Activity.request` call threw. The message will
-describe the reason (e.g. the system has reached the maximum number of activities).
+Then launch the app. After the first launch, also check:
+Settings → scroll down to **Luma** → **Live Activities** → ON
 
 ---
 
-### Dynamic Island updates but timer stops after a few minutes
+### Live Activity does not appear after tapping Start, and Xcode console shows `ACTIVITIES_DISABLED`
 
-**Cause:** Low Power Mode is active. ActivityKit rate-limits and eventually suspends
-updates in Low Power Mode.
+Same cause and fix as above.
+
+---
+
+### Live Activity does not appear after tapping Start, and Xcode console shows `START_FAILED`
+
+**Root cause:** `NSSupportsLiveActivities` is missing from the main app Info.plist, or
+the widget extension Info.plist does not have the same key.
+
+**Fix:** Verify both plists as described in Step 4 and Step 12. Also confirm the widget
+deployment target is 16.1 or later (Step 13).
+
+---
+
+### Dynamic Island shows the emoji and timer at start, but the timer never updates
+
+**Root cause:** Low Power Mode is active. ActivityKit suspends non-critical updates
+in Low Power Mode.
 
 **Fix:** Settings → Battery → Low Power Mode → OFF
 
 ---
 
-### App builds and runs but `NativeModules.LiveActivityModule` is undefined (JS error)
+### `NativeModules.LiveActivityModule` is undefined (JavaScript error on device)
 
-**Cause:** `LiveActivityModule.swift` and/or `LiveActivityModule.m` are not in the
-Xcode project or are not assigned to the luma target.
+**Root cause:** `LiveActivityModule.swift` and/or `LiveActivityModule.m` are not in
+the Xcode project or are not assigned to the luma target.
 
-**Fix:** Check both files appear in the Project Navigator under the luma group, then
-check their Target Membership includes luma.
+**Fix:** Confirm both files appear in the Navigator. Click each one and check that
+**luma** is checked in the File Inspector Target Membership.
 
 ---
 
 ### `pod install` fails
 
 ```bash
-sudo gem install cocoapods --pre
+sudo gem install cocoapods
 cd ios && pod install --repo-update
-```
-
----
-
-## File target membership reference
-
-```
-ios/
-├── Shared/
-│   └── DoomscrollAttributes.swift     ← luma + DoomscrollWidget
-│
-├── LiveActivityModule/
-│   ├── LiveActivityModule.swift       ← luma only
-│   └── LiveActivityModule.m           ← luma only
-│
-├── DoomscrollWidget/
-│   ├── DoomscrollWidgetBundle.swift   ← DoomscrollWidget only
-│   ├── DoomscrollLiveActivity.swift   ← DoomscrollWidget only
-│   └── Info.plist                     ← DoomscrollWidget only
-│
-└── luma/
-    ├── luma-Bridging-Header.h         ← luma only (referenced in Build Settings)
-    └── luma.entitlements              ← luma only
 ```
 
 ---
 
 ## Stage reference
 
-| Stage | Emoji | Elapsed time |
-|-------|-------|-------------|
-| calm | 🐛 | 0:00 – 4:59 |
-| restless | 🦎 | 5:00 – 9:59 |
-| agitated | 🦂 | 10:00 – 14:59 |
+| Stage | Emoji | Time |
+|-------|-------|------|
+| calm | 🐛 | 0:00 to 4:59 |
+| restless | 🦎 | 5:00 to 9:59 |
+| agitated | 🦂 | 10:00 to 14:59 |
 | exhausted | 💀 | 15:00 onwards |
 
-JS timer ticks every **1 second** — updates the in-app UI only.
-Native Live Activity update fires every **10 seconds** or immediately when the
-stage changes — this is what the Dynamic Island reflects.
+In-app timer updates every **1 second**.
+Dynamic Island updates every **10 seconds**, or immediately when the stage changes.
