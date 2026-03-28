@@ -1,0 +1,12 @@
+//
+// luma-Bridging-Header.h
+//
+// This file exposes the React Native Objective-C headers to Swift files in the
+// main app target. Xcode will find it automatically if the path is set correctly
+// in Build Settings → Swift Compiler - General → Objective-C Bridging Header.
+//
+// Expected value:  luma/luma-Bridging-Header.h
+//
+
+#import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
