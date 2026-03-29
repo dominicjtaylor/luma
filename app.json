@@ -17,6 +17,9 @@
     },
     "android": {
       "package": "com.luma.doomscroll"
-    }
+    },
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }

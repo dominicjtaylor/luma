@@ -1,7 +1,9 @@
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
 // Exposes LiveActivityModule (Swift) to React Native's bridge.
-RCT_EXTERN_MODULE(LiveActivityModule, NSObject)
+
+@interface RCT_EXTERN_MODULE(LiveActivityModule, NSObject)
 
 RCT_EXTERN_METHOD(
   startActivity:(NSInteger)elapsedSeconds
@@ -21,3 +23,5 @@ RCT_EXTERN_METHOD(
   endActivity:(RCTPromiseResolveBlock)resolve
   reject:(RCTPromiseRejectBlock)reject
 )
+
+@end
